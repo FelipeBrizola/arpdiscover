@@ -7,6 +7,42 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 
+void decimalToBin(int num, char *str) {
+    *(str+8) = '\0';
+    int mask = 0x80 << 1;
+    while(mask >>= 1)
+        *str++ = !!(mask & num) + '0';
+}
+
+void maskToBinary(struct in_addr *mask, char *binaryMask) {
+
+    int firstPart, secondPart, thirdPart, fourtPart;
+    char firstOctet[9], secondOctet[9], thirdOctet[9], fourtOctet[9];
+
+    sscanf(inet_ntoa(*mask), "%d.%d.%d.%d.", &firstPart, &secondPart, &thirdPart, &fourtPart);
+
+
+    decimalToBin(firstPart, firstOctet);
+    decimalToBin(secondPart, secondOctet);
+    decimalToBin(thirdPart, thirdOctet);
+    decimalToBin(fourtPart, fourtOctet);
+
+    strcpy(binaryMask, firstOctet);
+
+    strcat(binaryMask, secondOctet);
+    strcat(binaryMask, thirdOctet);
+    strcat(binaryMask, fourtOctet);
+
+}
+
+int getRange(char *binaryMask) {
+    int i = strcspn(binaryMask, "0");
+    int binaryIpSize = 32;
+
+    return binaryIpSize - i;
+
+}
+
 int main() {
     int fd;
     struct ifreq ifr;
@@ -14,6 +50,9 @@ int main() {
 
     struct in_addr *ip = malloc(sizeof(struct in_addr));
     struct in_addr *mask = malloc(sizeof(struct in_addr));
+
+    char binaryMask[36];
+    int range;
 
     char iface[] = "enp0s3";
 
@@ -44,8 +83,13 @@ int main() {
         struct sockaddr_in *ipaddr = (struct sockaddr_in*)&ifr.ifr_addr;
         memcpy(mask, &ipaddr->sin_addr, sizeof(struct in_addr));
         printf("MASK ADDRESS: %s\n", inet_ntoa(*mask));
-    }
 
+        maskToBinary(mask, binaryMask);
+        printf("BINARY MASK:  %s\n", binaryMask);
+
+        range = getRange(binaryMask);
+
+    }
 
     close(fd);
 

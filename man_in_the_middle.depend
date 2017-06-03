@@ -1,0 +1,11 @@
+# depslib dependency file v1.0
+1496514366 source:/home/felipe/Documents/man-in-the-middle/arpdiscover.c
+	<stdio.h>
+	<string.h>
+	<sys/socket.h>
+	<sys/ioctl.h>
+	<net/if.h>
+	<unistd.h>
+	<arpa/inet.h>
+	<stdlib.h>
+
