@@ -20,22 +20,19 @@ int intToBinary(int n) {
     return binary;
 }
 
-
-char *getAllAvailableIps(int range) {
-    int possibleValues = pow(2, range);
-    char availableIp[range];
-
-    // [numero de string][tamanho da string]
-    char ips[possibleValues][range + 1];
-
-    for(int i = 0; i < possibleValues; i++) {
-        // converte inteiro para decimal e preenche com zeros a esqueda
-        sprintf(availableIp, "%0*d", range, intToBinary(i));
-
-        // copia valor para lista de ips
-        strcpy(ips[i], availableIp);
+int binaryToInt(int n)
+{
+    int decimalNumber = 0, i = 0, remainder;
+    while (n!=0)
+    {
+        remainder = n%10;
+        n /= 10;
+        decimalNumber += remainder*pow(2,i);
+        ++i;
     }
+    return decimalNumber;
 }
+
 
 void decimalToBin(int num, char *str) {
     *(str + 8) = '\0';
@@ -65,6 +62,44 @@ void ipToBinary(struct in_addr *ip, char *binaryMask) {
 
 }
 
+void binaryIpToDecimalIp(char *binaryIp, char *ret) {
+    char firstPart[8], secondPart[8], thirtPart[8], fourtPart[8];
+
+    memset(firstPart, '0', 8);
+    memset(secondPart, '0', 8);
+    memset(thirtPart, '0', 8);
+    memset(fourtPart, '0', 8);
+    memset(ret, '0', 32 + 3);
+
+    for (int i = 0; i < 32; i++) {
+        if (i < 8)
+            firstPart[i] = binaryIp[i];
+
+        else if (i > 7 && i < 16)
+            secondPart[i - 8] = binaryIp[i];
+
+        else if (i >= 16 && i < 24)
+            thirtPart[i - 16] = binaryIp[i];
+
+        else if (i >= 24)
+            fourtPart[i - 24] = binaryIp[i];
+
+    }
+    firstPart[8] = '\0';
+    secondPart[8] = '\0';
+    thirtPart[8] = '\0';
+    fourtPart[8] = '\0';
+
+    strcpy(ret, firstPart);
+    strcat(ret, ".");
+    strcat(ret, secondPart);
+    strcat(ret, ".");
+    strcat(ret, thirtPart);
+    strcat(ret, ".");
+    strcat(ret, fourtPart);
+
+}
+
 int getRange(char *binaryMask) {
     int i = strcspn(binaryMask, "0");
     int binaryIpSize = 32;
@@ -82,6 +117,8 @@ int main() {
 
     char binaryMask[36];
     char binaryIp[36];
+
+    char ipbase[36];
 
     int range;
 
@@ -125,10 +162,42 @@ int main() {
     ipToBinary(ip, binaryIp);
     printf("BINARY IP:  %s\n", binaryIp);
 
+    // ----- ips validos -----
+    int possibleValues = pow(2, range);
+    char availableIp[range];
+
+    // [numero de string][tamanho da string]
+    char ipsRange[possibleValues][range + 1];
+    char ips[possibleValues][32 + 1];
+
+    for(int i = 0; i < possibleValues; i++) {
+        // converte inteiro para string e preenche com zeros a esqueda
+        sprintf(availableIp, "%0*d", range, intToBinary(i));
+
+        // copia valor para lista de ips
+        strcpy(ipsRange[i], availableIp);
+    }
+    // ----- ips validos -----
+
+    strncpy(ipbase, binaryIp, 32 - range);
+
+    printf("%s\n", ipbase);
+
+
+    for (int i = 0; i < possibleValues; i++) {
+        strcpy(ips[i], ipbase);
+        strcat(ips[i], ipsRange[i]);
+
+        printf("IP CORRENTE EM BINARIO-->%s\n", ips[i]);
+
+        char p[32 + 3];
+        binaryIpToDecimalIp(ips[i], p);
+
+        printf("%s\n", p);
 
 
 
-    getAllAvailableIps(range);
+    }
 
     close(fd);
 
