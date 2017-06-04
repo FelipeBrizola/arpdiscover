@@ -7,6 +7,8 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 
+#define IP_SIZE  32
+
 int intToBinary(int n) {
     int remainder;
     int binary = 0, i = 1;
@@ -20,21 +22,19 @@ int intToBinary(int n) {
     return binary;
 }
 
-int binaryToInt(int n)
-{
+int binaryToInt(int n) {
     int decimalNumber = 0, i = 0, remainder;
-    while (n!=0)
-    {
-        remainder = n%10;
+    while (n != 0) {
+        remainder = n % 10;
         n /= 10;
-        decimalNumber += remainder*pow(2,i);
+        decimalNumber += remainder*pow(2, i);
         ++i;
     }
     return decimalNumber;
 }
 
 
-void decimalToBin(int num, char *str) {
+void intToBinOctet(int num, char *str) {
     *(str + 8) = '\0';
     int mask = 0x80 << 1;
     while(mask >>= 1)
@@ -49,10 +49,10 @@ void ipToBinary(struct in_addr *ip, char *binaryMask) {
     sscanf(inet_ntoa(*ip), "%d.%d.%d.%d.", &firstPart, &secondPart, &thirdPart, &fourtPart);
 
 
-    decimalToBin(firstPart, firstOctet);
-    decimalToBin(secondPart, secondOctet);
-    decimalToBin(thirdPart, thirdOctet);
-    decimalToBin(fourtPart, fourtOctet);
+    intToBinOctet(firstPart, firstOctet);
+    intToBinOctet(secondPart, secondOctet);
+    intToBinOctet(thirdPart, thirdOctet);
+    intToBinOctet(fourtPart, fourtOctet);
 
     strcpy(binaryMask, firstOctet);
 
@@ -65,13 +65,13 @@ void ipToBinary(struct in_addr *ip, char *binaryMask) {
 void binaryIpToDecimalIp(char *binaryIp, char *ret) {
     char firstPart[8], secondPart[8], thirtPart[8], fourtPart[8];
 
-    memset(firstPart, '0', 8);
+    memset(firstPart,  '0', 8);
     memset(secondPart, '0', 8);
-    memset(thirtPart, '0', 8);
-    memset(fourtPart, '0', 8);
-    memset(ret, '0', 32 + 3);
+    memset(thirtPart,  '0', 8);
+    memset(fourtPart,  '0', 8);
+    memset(ret,        '0', IP_SIZE + 3);
 
-    for (int i = 0; i < 32; i++) {
+    for (int i = 0; i < IP_SIZE; i++) {
         if (i < 8)
             firstPart[i] = binaryIp[i];
 
@@ -85,26 +85,25 @@ void binaryIpToDecimalIp(char *binaryIp, char *ret) {
             fourtPart[i - 24] = binaryIp[i];
 
     }
+
     firstPart[8] = '\0';
     secondPart[8] = '\0';
     thirtPart[8] = '\0';
     fourtPart[8] = '\0';
 
-    strcpy(ret, firstPart);
-    strcat(ret, ".");
-    strcat(ret, secondPart);
-    strcat(ret, ".");
-    strcat(ret, thirtPart);
-    strcat(ret, ".");
+    strcpy(ret, firstPart); strcat(ret, ".");
+    strcat(ret, secondPart); strcat(ret, ".");
+    strcat(ret, thirtPart); strcat(ret, ".");
     strcat(ret, fourtPart);
 
 }
 
 int getRange(char *binaryMask) {
-    int i = strcspn(binaryMask, "0");
-    int binaryIpSize = 32;
 
-    return binaryIpSize - i;
+    // encontra primeiro zero
+    int i = strcspn(binaryMask, "0");
+
+    return IP_SIZE - i;
 }
 
 int main() {
@@ -115,14 +114,12 @@ int main() {
     struct in_addr *ip = malloc(sizeof(struct in_addr));
     struct in_addr *mask = malloc(sizeof(struct in_addr));
 
-    char binaryMask[36];
-    char binaryIp[36];
+    char binaryMask[IP_SIZE + 4];
+    char binaryIp[IP_SIZE + 4];
 
-    char ipbase[36];
+    char ipbase[IP_SIZE + 4];
 
     int range;
-
-
 
     char iface[] = "enp0s3";
 
@@ -168,7 +165,7 @@ int main() {
 
     // [numero de string][tamanho da string]
     char ipsRange[possibleValues][range + 1];
-    char ips[possibleValues][32 + 1];
+    char ips[possibleValues][IP_SIZE + 1];
 
     for(int i = 0; i < possibleValues; i++) {
         // converte inteiro para string e preenche com zeros a esqueda
@@ -179,7 +176,7 @@ int main() {
     }
     // ----- ips validos -----
 
-    strncpy(ipbase, binaryIp, 32 - range);
+    strncpy(ipbase, binaryIp, IP_SIZE - range);
 
     printf("%s\n", ipbase);
 
@@ -188,14 +185,10 @@ int main() {
         strcpy(ips[i], ipbase);
         strcat(ips[i], ipsRange[i]);
 
-        printf("IP CORRENTE EM BINARIO-->%s\n", ips[i]);
-
-        char p[32 + 3];
+        char p[IP_SIZE + 3];
         binaryIpToDecimalIp(ips[i], p);
 
         printf("%s\n", p);
-
-
 
     }
 
