@@ -7,19 +7,49 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 
+int intToBinary(int n) {
+    int remainder;
+    int binary = 0, i = 1;
+
+    while(n != 0) {
+        remainder = n%2;
+        n = n/2;
+        binary= binary + (remainder*i);
+        i = i*10;
+    }
+    return binary;
+}
+
+
+char *getAllAvailableIps(int range) {
+    int possibleValues = pow(2, range);
+    char availableIp[range];
+
+    // [numero de string][tamanho da string]
+    char ips[possibleValues][range + 1];
+
+    for(int i = 0; i < possibleValues; i++) {
+        // converte inteiro para decimal e preenche com zeros a esqueda
+        sprintf(availableIp, "%0*d", range, intToBinary(i));
+
+        // copia valor para lista de ips
+        strcpy(ips[i], availableIp);
+    }
+}
+
 void decimalToBin(int num, char *str) {
-    *(str+8) = '\0';
+    *(str + 8) = '\0';
     int mask = 0x80 << 1;
     while(mask >>= 1)
         *str++ = !!(mask & num) + '0';
 }
 
-void maskToBinary(struct in_addr *mask, char *binaryMask) {
+void ipToBinary(struct in_addr *ip, char *binaryMask) {
 
     int firstPart, secondPart, thirdPart, fourtPart;
     char firstOctet[9], secondOctet[9], thirdOctet[9], fourtOctet[9];
 
-    sscanf(inet_ntoa(*mask), "%d.%d.%d.%d.", &firstPart, &secondPart, &thirdPart, &fourtPart);
+    sscanf(inet_ntoa(*ip), "%d.%d.%d.%d.", &firstPart, &secondPart, &thirdPart, &fourtPart);
 
 
     decimalToBin(firstPart, firstOctet);
@@ -40,7 +70,6 @@ int getRange(char *binaryMask) {
     int binaryIpSize = 32;
 
     return binaryIpSize - i;
-
 }
 
 int main() {
@@ -52,7 +81,11 @@ int main() {
     struct in_addr *mask = malloc(sizeof(struct in_addr));
 
     char binaryMask[36];
+    char binaryIp[36];
+
     int range;
+
+
 
     char iface[] = "enp0s3";
 
@@ -83,13 +116,19 @@ int main() {
         struct sockaddr_in *ipaddr = (struct sockaddr_in*)&ifr.ifr_addr;
         memcpy(mask, &ipaddr->sin_addr, sizeof(struct in_addr));
         printf("MASK ADDRESS: %s\n", inet_ntoa(*mask));
-
-        maskToBinary(mask, binaryMask);
-        printf("BINARY MASK:  %s\n", binaryMask);
-
-        range = getRange(binaryMask);
-
     }
+
+    ipToBinary(mask, binaryMask);
+    range = getRange(binaryMask);
+    printf("BINARY MASK:  %s\n", binaryMask);
+
+    ipToBinary(ip, binaryIp);
+    printf("BINARY IP:  %s\n", binaryIp);
+
+
+
+
+    getAllAvailableIps(range);
 
     close(fd);
 
