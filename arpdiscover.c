@@ -22,15 +22,15 @@ int intToBinary(int n) {
     return binary;
 }
 
-int binaryToInt(int n) {
-    int decimalNumber = 0, i = 0, remainder;
-    while (n != 0) {
-        remainder = n % 10;
-        n /= 10;
-        decimalNumber += remainder*pow(2, i);
-        ++i;
+int binaryToInt(char *binaryCharArray) {
+    char *start = &binaryCharArray[0];
+    int total = 0;
+    while (*start) {
+        total *= 2;
+        if (*start++ == '1')
+            total += 1;
     }
-    return decimalNumber;
+    return total;
 }
 
 
@@ -63,38 +63,54 @@ void ipToBinary(struct in_addr *ip, char *binaryMask) {
 }
 
 void binaryIpToDecimalIp(char *binaryIp, char *ret) {
-    char firstPart[8], secondPart[8], thirtPart[8], fourtPart[8];
+    char firstPartStr[8], secondPartStr[8], thirtPartStr[8], fourtPartStr[8];
+    int firstPartInt, secondPartInt, thirtPartInt, fourtPartInt;
 
-    memset(firstPart,  '0', 8);
-    memset(secondPart, '0', 8);
-    memset(thirtPart,  '0', 8);
-    memset(fourtPart,  '0', 8);
+    memset(firstPartStr,  '0', 8);
+    memset(secondPartStr, '0', 8);
+    memset(thirtPartStr,  '0', 8);
+    memset(fourtPartStr,  '0', 8);
     memset(ret,        '0', IP_SIZE + 3);
 
     for (int i = 0; i < IP_SIZE; i++) {
         if (i < 8)
-            firstPart[i] = binaryIp[i];
+            firstPartStr[i] = binaryIp[i];
 
         else if (i > 7 && i < 16)
-            secondPart[i - 8] = binaryIp[i];
+            secondPartStr[i - 8] = binaryIp[i];
 
         else if (i >= 16 && i < 24)
-            thirtPart[i - 16] = binaryIp[i];
+            thirtPartStr[i - 16] = binaryIp[i];
 
         else if (i >= 24)
-            fourtPart[i - 24] = binaryIp[i];
+            fourtPartStr[i - 24] = binaryIp[i];
 
     }
 
-    firstPart[8] = '\0';
-    secondPart[8] = '\0';
-    thirtPart[8] = '\0';
-    fourtPart[8] = '\0';
+    firstPartStr[8] = '\0';
+    secondPartStr[8] = '\0';
+    thirtPartStr[8] = '\0';
+    fourtPartStr[8] = '\0';
 
-    strcpy(ret, firstPart); strcat(ret, ".");
-    strcat(ret, secondPart); strcat(ret, ".");
-    strcat(ret, thirtPart); strcat(ret, ".");
-    strcat(ret, fourtPart);
+    firstPartInt = binaryToInt(firstPartStr);
+    secondPartInt = binaryToInt(secondPartStr);
+    thirtPartInt = binaryToInt(thirtPartStr);
+    fourtPartInt = binaryToInt(fourtPartStr);
+
+    memset(firstPartStr,  '0', 8);
+    memset(secondPartStr, '0', 8);
+    memset(thirtPartStr,  '0', 8);
+    memset(fourtPartStr,  '0', 8);
+
+    sprintf(firstPartStr, "%d", firstPartInt);
+    sprintf(secondPartStr, "%d", secondPartInt);
+    sprintf(thirtPartStr, "%d", thirtPartInt);
+    sprintf(fourtPartStr, "%d", fourtPartInt);
+
+    strcpy(ret, firstPartStr); strcat(ret, ".");
+    strcat(ret, secondPartStr); strcat(ret, ".");
+    strcat(ret, thirtPartStr); strcat(ret, ".");
+    strcat(ret, fourtPartStr);
 
 }
 
