@@ -9,6 +9,37 @@
 
 #define IP_SIZE  32
 
+
+static char format[] = "ping -c 1 -w 1 %s";
+static char command[128];
+
+int ping (char *ip) {
+    char str[1024];
+	FILE *fpipe;
+
+	sprintf(command, format, ip);
+
+	/* executa comando redirecionando a saida para o pipe. */
+	if ( (fpipe = popen(command, "r"))<0){
+		perror("popen");
+	}
+
+	/* Ignora primeira linha */
+	/* PING 10.32.175.200 (10.32.175.200) 56(84) bytes of data. */
+	fgets(str, 1023, fpipe);
+
+	/* Verifica se teve sucesso no ping com a segunda linha */
+	/* 64 bytes from 10.32.175.200: icmp_req=1 ttl=64 time=0.023 ms */
+	fgets(str, 1023, fpipe);
+	if(strcmp(str, "\n"))
+		return 1;
+	else
+		return 0;
+
+	fclose(fpipe);
+}
+
+
 int intToBinary(int n) {
     int remainder;
     int binary = 0, i = 1;
@@ -204,7 +235,15 @@ int main() {
         char p[IP_SIZE + 3];
         binaryIpToDecimalIp(ips[i], p);
 
-        printf("%s\n", p);
+        int success = 0;
+
+        if (i != possibleValues)
+            success = ping(p);
+
+        if (success == 1)
+            printf("PING SUCCESS: %s\n", p);
+        else
+            printf("PING FAILED: %s\n", p);
 
     }
 
