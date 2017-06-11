@@ -1,6 +1,6 @@
 all:
 	gcc -o arpdiscover arpdiscover.c -lm
-	./arpdiscover
+	chmod 777 *
 
 clean:
 	rm -f arpdiscover

@@ -179,6 +179,9 @@ int main() {
     //Copy the interface name in the ifreq structure
     strncpy(ifr.ifr_name , iface , IFNAMSIZ-1);
 
+    printf("\n");
+    printf("----------INFORMACOES DE REDE!----------\n\n");
+
     // mac
     if (0 == ioctl(fd, SIOCGIFHWADDR, &ifr)) {
         mac = malloc(sizeof (struct sockaddr));
@@ -202,11 +205,9 @@ int main() {
 
     ipToBinary(mask, binaryMask);
     range = getRange(binaryMask);
-    printf("BINARY MASK:  %s\n", binaryMask);
 
     ipToBinary(ip, binaryIp);
-    printf("BINARY IP:  %s\n", binaryIp);
-
+   
     // ----- ips validos -----
     int possibleValues = pow(2, range);
     char availableIp[range];
@@ -226,10 +227,10 @@ int main() {
 
     strncpy(ipbase, binaryIp, IP_SIZE - range);
 
-    printf("%s\n", ipbase);
+    printf("\n");
+    printf("----------AGORA O PING VAI COMER!----------\n\n");
 
-
-    for (int i = 0; i < possibleValues; i++) {
+    for (int i = 1; i < possibleValues; i++) {
         strcpy(ips[i], ipbase);
         strcat(ips[i], ipsRange[i]);
 
@@ -238,10 +239,14 @@ int main() {
 
         int success = 0;
 
-        if (i != possibleValues)
+        // ping em todos os hosts e no roteador
+        if (i != possibleValues -1 )
             success = ping(p);
 
-        if (success == 1)
+        if (success == 1 && i == 1)
+            printf("GATEWAY PING SUCCESS: %s\n", p);
+
+        else if (success == 1)
             printf("PING SUCCESS: %s\n", p);
         else
             printf("PING FAILED: %s\n", p);
