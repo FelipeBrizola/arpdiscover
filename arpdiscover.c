@@ -75,33 +75,33 @@ void intToBinOctet(int num, char *str) {
 
 void ipToBinary(struct in_addr *ip, char *binaryMask) {
 
-    int firstPart, secondPart, thirdPart, fourtPart;
-    char firstOctet[9], secondOctet[9], thirdOctet[9], fourtOctet[9];
+    int firstPart, secondPart, thirdPart, fourthPart;
+    char firstOctet[9], secondOctet[9], thirdOctet[9], fourthOctet[9];
 
-    sscanf(inet_ntoa(*ip), "%d.%d.%d.%d.", &firstPart, &secondPart, &thirdPart, &fourtPart);
+    sscanf(inet_ntoa(*ip), "%d.%d.%d.%d.", &firstPart, &secondPart, &thirdPart, &fourthPart);
 
 
     intToBinOctet(firstPart, firstOctet);
     intToBinOctet(secondPart, secondOctet);
     intToBinOctet(thirdPart, thirdOctet);
-    intToBinOctet(fourtPart, fourtOctet);
+    intToBinOctet(fourthPart, fourthOctet);
 
     strcpy(binaryMask, firstOctet);
 
     strcat(binaryMask, secondOctet);
     strcat(binaryMask, thirdOctet);
-    strcat(binaryMask, fourtOctet);
+    strcat(binaryMask, fourthOctet);
 
 }
 
 void binaryIpToDecimalIp(char *binaryIp, char *ret) {
-    char firstPartStr[8], secondPartStr[8], thirtPartStr[8], fourtPartStr[8];
-    int firstPartInt, secondPartInt, thirtPartInt, fourtPartInt;
+    char firstPartStr[8], secondPartStr[8], thirtPartStr[8], fourthPartStr[8];
+    int firstPartInt, secondPartInt, thirtPartInt, fourthPartInt;
 
     memset(firstPartStr,  '0', 8);
     memset(secondPartStr, '0', 8);
     memset(thirtPartStr,  '0', 8);
-    memset(fourtPartStr,  '0', 8);
+    memset(fourthPartStr,  '0', 8);
     memset(ret,        '0', IP_SIZE + 3);
 
     for (int i = 0; i < IP_SIZE; i++) {
@@ -115,34 +115,34 @@ void binaryIpToDecimalIp(char *binaryIp, char *ret) {
             thirtPartStr[i - 16] = binaryIp[i];
 
         else if (i >= 24)
-            fourtPartStr[i - 24] = binaryIp[i];
+            fourthPartStr[i - 24] = binaryIp[i];
 
     }
 
     firstPartStr[8] = '\0';
     secondPartStr[8] = '\0';
     thirtPartStr[8] = '\0';
-    fourtPartStr[8] = '\0';
+    fourthPartStr[8] = '\0';
 
     firstPartInt = binaryToInt(firstPartStr);
     secondPartInt = binaryToInt(secondPartStr);
     thirtPartInt = binaryToInt(thirtPartStr);
-    fourtPartInt = binaryToInt(fourtPartStr);
+    fourthPartInt = binaryToInt(fourthPartStr);
 
     memset(firstPartStr,  '0', 8);
     memset(secondPartStr, '0', 8);
     memset(thirtPartStr,  '0', 8);
-    memset(fourtPartStr,  '0', 8);
+    memset(fourthPartStr,  '0', 8);
 
     sprintf(firstPartStr, "%d", firstPartInt);
     sprintf(secondPartStr, "%d", secondPartInt);
     sprintf(thirtPartStr, "%d", thirtPartInt);
-    sprintf(fourtPartStr, "%d", fourtPartInt);
+    sprintf(fourthPartStr, "%d", fourthPartInt);
 
     strcpy(ret, firstPartStr); strcat(ret, ".");
     strcat(ret, secondPartStr); strcat(ret, ".");
     strcat(ret, thirtPartStr); strcat(ret, ".");
-    strcat(ret, fourtPartStr);
+    strcat(ret, fourthPartStr);
 
 }
 
@@ -154,10 +154,12 @@ int getRange(char *binaryMask) {
     return IP_SIZE - i;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     int fd;
     struct ifreq ifr;
     unsigned char *mac = NULL;
+
+    char iface[IFNAMSIZ];
 
     struct in_addr *ip = malloc(sizeof(struct in_addr));
     struct in_addr *mask = malloc(sizeof(struct in_addr));
@@ -169,7 +171,12 @@ int main() {
 
     int range;
 
-    char iface[] = "enp0s3";
+    if (argc != 2) {
+        printf("param: interface de rede\n");
+        return 1;
+    }
+
+    strcpy(iface, argv[1]);
 
     fd = socket(AF_INET, SOCK_DGRAM, 0);
 
