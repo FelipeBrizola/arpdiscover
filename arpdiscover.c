@@ -495,14 +495,10 @@ int main(int argc, char *argv[]) {
 
 			memcpy(target_ip, arp_buffer + offset, sizeof(target_ip));
 
-			/* captura reply */
-			if ( (unsigned char) opcode_reply[1] == (unsigned char)opcode[1] ) {
-
-                /* eh resposta? */              
-                if (target_ip[3] == myIp[3] && target_ip[2] == myIp[2] && target_ip[1] == myIp[1]) {
+			/* captura reply e verifica se eh resposta para meu ip */
+			if ( (unsigned char) opcode_reply[1] == (unsigned char)opcode[1] )
+                if (target_ip[3] == myIp[3] && target_ip[2] == myIp[2] && target_ip[1] == myIp[1])
                     printf("ARP REPLY DO IP: %d.%d.%d.%d\n", sender_ip[0], sender_ip[1], sender_ip[2], sender_ip[3]);
-                }
-			}
 		}
 	}
 
