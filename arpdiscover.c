@@ -10,15 +10,22 @@
 #include <netinet/ether.h>
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
+#include <time.h>
 
 #define IP_SIZE  32
 #define BUFFER_SIZE 1600
 #define MAC_ADDR_LEN 6
 
+#define ETHERNET_HEADER_SIZE 14 // bytes
+#define ETHERNET_PADDING_SIZE 18 // bytes
+#define ETHERTYPE 0x0806
+
 
 unsigned char mac[6];
 struct in_addr *ip;
 unsigned char buffer_request[BUFFER_SIZE];
+
+unsigned char myIp[4];
 
 int buildArpBuffer ( char *target_ip, int frame_len) {
     char HTYPE[] = {0x00, 0x01};        // HARDWARE TYPE. ETHERNET = 1
@@ -60,6 +67,8 @@ int buildArpBuffer ( char *target_ip, int frame_len) {
 	SENDER_IP[1] = secondOctetHex;
 	SENDER_IP[2] = thirdOctetHex;
 	SENDER_IP[3] = fourthOctetHex;
+
+    memcpy(myIp, SENDER_IP, sizeof(SENDER_IP));
 
     // ip target
 	sscanf(target_ip, "%d.%d.%d.%d.", &firstOctet, &secondOctet, &thirdOctet, &fourthOctet);
@@ -320,7 +329,6 @@ int main(int argc, char *argv[]) {
         struct sockaddr_in *ipaddr = (struct sockaddr_in*)&ifr.ifr_addr;
         ip =  malloc(sizeof(struct in_addr));
         memcpy(ip, &ipaddr->sin_addr, sizeof(struct in_addr));
-       
     }
 
     // mask
@@ -384,6 +392,119 @@ int main(int argc, char *argv[]) {
         frame_len = frame_len_backup;
 
     }
+
+
+    /* Obtem o indice da interface de rede */
+	strcpy(ifr.ifr_name, ifname);
+	if(ioctl(fd, SIOCGIFINDEX, &ifr) < 0) {
+		perror("ioctl");
+		exit(1);
+	}
+
+	/* Obtem as flags da interface */
+	if (ioctl(fd, SIOCGIFFLAGS, &ifr) < 0){
+		perror("ioctl");
+		exit(1);
+	}
+
+	/* Coloca a interface em modo promiscuo */
+	ifr.ifr_flags |= IFF_PROMISC;
+	if(ioctl(fd, SIOCSIFFLAGS, &ifr) < 0) {
+		perror("ioctl");
+		exit(1);
+	}
+
+    time_t endwait;
+    time_t start = time(NULL);
+    time_t seconds = 10; // end loop after this time has elapsed
+
+    endwait = start + seconds;
+
+    printf("Esperando arp reply's ... \n");
+	while(start < endwait) { 
+         start = time(NULL);       
+
+        short int ethertype;
+		int offset = 0;
+		char sender_mac[6];
+		char target_mac[6];
+		unsigned char sender_ip[4];
+		unsigned char target_ip[4];
+		unsigned char hdw_type[2];
+		unsigned char protocol_type[2];
+		unsigned char hdw_size[1];
+		unsigned char protocol_size[1];
+		unsigned char opcode[2];
+        char reciver_buffer[BUFFER_SIZE];
+
+        char unknownMac[6];
+	    memset(unknownMac, 0, sizeof(unknownMac));
+		
+		memset(sender_mac, 0, sizeof(sender_mac));
+		memset(target_mac, 0, sizeof(target_mac));
+		memset(sender_ip, 0, sizeof(sender_ip));
+		memset(target_ip, 0, sizeof(target_ip));
+		
+
+		unsigned char opcode_reply[] = {0x00, 0x02};
+
+		/* Recebe pacotes */
+		if (recv(fd,(char *) &reciver_buffer, BUFFER_SIZE, 0) < 0) {
+			perror("recv");
+			close(fd);
+			exit(1);
+		}
+
+		int arp_buffer_size = sizeof(reciver_buffer) / 8 - (ETHERNET_HEADER_SIZE + ETHERNET_PADDING_SIZE);		
+
+		unsigned char arp_buffer[arp_buffer_size];
+
+		memset(arp_buffer, 0, sizeof(arp_buffer));
+
+		// obtem apenas arp
+		memcpy(arp_buffer, reciver_buffer + ETHERNET_HEADER_SIZE, arp_buffer_size );
+
+		memcpy(&ethertype, reciver_buffer + sizeof(mac)+sizeof(unknownMac), sizeof(ethertype));
+		ethertype = ntohs(ethertype);       
+
+		if (ethertype == ETHERTYPE) {
+
+			memcpy(hdw_type, arp_buffer, sizeof(hdw_type));
+			offset += sizeof(hdw_type);
+
+			memcpy(protocol_type, arp_buffer + offset, sizeof(protocol_type));
+			offset += sizeof(protocol_type);
+
+			memcpy(hdw_size, arp_buffer + offset, sizeof(hdw_size));
+			offset += sizeof(hdw_size);
+
+			memcpy(protocol_size, arp_buffer + offset, sizeof(protocol_size));
+			offset += sizeof(protocol_size);
+
+			memcpy(opcode, arp_buffer + offset, sizeof(opcode));
+			offset += sizeof(opcode);
+
+			memcpy(sender_mac, arp_buffer + offset, sizeof(sender_mac));
+			offset +=  sizeof(sender_mac);
+
+			memcpy(sender_ip, arp_buffer + offset, sizeof(sender_ip));
+			offset += sizeof(sender_ip);
+
+			memcpy(target_mac, arp_buffer + offset, sizeof(target_mac));
+			offset += sizeof(target_mac);
+
+			memcpy(target_ip, arp_buffer + offset, sizeof(target_ip));
+
+			/* captura reply */
+			if ( (unsigned char) opcode_reply[1] == (unsigned char)opcode[1] ) {
+
+                /* eh resposta? */              
+                if (target_ip[3] == myIp[3] && target_ip[2] == myIp[2] && target_ip[1] == myIp[1]) {
+                    printf("ARP REPLY DO IP: %d.%d.%d.%d\n", sender_ip[0], sender_ip[1], sender_ip[2], sender_ip[3]);
+                }
+			}
+		}
+	}
 
     close(fd);
 
