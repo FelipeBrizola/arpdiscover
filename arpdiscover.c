@@ -7,37 +7,112 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <math.h>
+#include <netinet/ether.h>
+#include <arpa/inet.h>
+#include <linux/if_packet.h>
 
 #define IP_SIZE  32
+#define BUFFER_SIZE 1600
+#define MAC_ADDR_LEN 6
 
 
-static char format[] = "ping -c 1 -w 1 %s";
-static char command[128];
+unsigned char mac[6];
+struct in_addr *ip;
+unsigned char buffer_request[BUFFER_SIZE];
 
-int ping (char *ip) {
-    char str[1024];
-	FILE *fpipe;
+int buildArpBuffer ( char *target_ip, int frame_len) {
+    char HTYPE[] = {0x00, 0x01};        // HARDWARE TYPE. ETHERNET = 1
+	char PTYPE[] = {0x08, 0x00};        // PROTOCOL TYPE. IPv4 = 0x800
+	char HLEN[]  = {0x06};              // HARDWARE SIZE = 6
+	char PLEN[]  = {0x04};              // PROTOCOL SIZE = 4
+	char REQUEST_OPER[]  = {0x00, 0x01};// OPERATION 1 TO REQUEST. 2 TO REPLY
+	char REPLY_OPER[]  = {0x00, 0x02};  // OPERATION 1 TO REQUEST. 2 TO REPLY
+	
+    unsigned char SENDER_MAC[6];
+	unsigned char SENDER_IP[4];
+	unsigned char TARGET_MAC[6];
+	unsigned char TARGET_IP[4];     
 
-	sprintf(command, format, ip);
+    memset(TARGET_MAC, 0, sizeof(TARGET_MAC));
+    memset(SENDER_MAC, 0, sizeof(SENDER_MAC));
+    memset(SENDER_IP, 0, sizeof(SENDER_IP));
+    memset(TARGET_IP, 0, sizeof(TARGET_IP));
 
-	/* executa comando redirecionando a saida para o pipe. */
-	if ( (fpipe = popen(command, "r"))<0){
-		perror("popen");
-	}
+    SENDER_MAC[0] = mac[0];
+    SENDER_MAC[1] = mac[1];
+    SENDER_MAC[2] = mac[2];
+    SENDER_MAC[3] = mac[3];
+    SENDER_MAC[4] = mac[4];
+    SENDER_MAC[5] = mac[5];
 
-	/* Ignora primeira linha */
-	/* PING 10.32.175.200 (10.32.175.200) 56(84) bytes of data. */
-	fgets(str, 1023, fpipe);
+    // my ip
+	unsigned char firstOctetHex, secondOctetHex, thirdOctetHex, fourthOctetHex; 
+	short int firstOctet, secondOctet, thirdOctet, fourthOctet;
 
-	/* Verifica se teve sucesso no ping com a segunda linha */
-	/* 64 bytes from 10.32.175.200: icmp_req=1 ttl=64 time=0.023 ms */
-	fgets(str, 1023, fpipe);
-	if(strcmp(str, "\n"))
-		return 1;
-	else
-		return 0;
+	sscanf(inet_ntoa(*ip), "%d.%d.%d.%d.", &firstOctet, &secondOctet, &thirdOctet, &fourthOctet);
+    
+	firstOctetHex  = (char) firstOctet;
+	secondOctetHex = (char) secondOctet;
+	thirdOctetHex  = (char) thirdOctet;
+	fourthOctetHex = (char) fourthOctet;
 
-	fclose(fpipe);
+	SENDER_IP[0] = firstOctetHex;
+	SENDER_IP[1] = secondOctetHex;
+	SENDER_IP[2] = thirdOctetHex;
+	SENDER_IP[3] = fourthOctetHex;
+
+    // ip target
+	sscanf(target_ip, "%d.%d.%d.%d.", &firstOctet, &secondOctet, &thirdOctet, &fourthOctet);
+
+	firstOctetHex  = (char) firstOctet;
+	secondOctetHex = (char) secondOctet;
+	thirdOctetHex  = (char) thirdOctet;
+	fourthOctetHex = (char) fourthOctet;
+	
+	TARGET_IP[0] = firstOctetHex;
+	TARGET_IP[1] = secondOctetHex;
+	TARGET_IP[2] = thirdOctetHex;
+	TARGET_IP[3] = fourthOctetHex;
+
+    printf("SENDER_MAC : %02X:%02X:%02X:%02X:%02X:%02X\n" , SENDER_MAC[0], SENDER_MAC[1], SENDER_MAC[2], SENDER_MAC[3], SENDER_MAC[4], SENDER_MAC[5]);
+    printf("SENDER_IP  : %d.%d.%d.%d \n", SENDER_IP[0], SENDER_IP[1], SENDER_IP[2], SENDER_IP[3] );
+    printf("TARGET_MAC : %02X:%02X:%02X:%02X:%02X:%02X\n" , TARGET_MAC[0], TARGET_MAC[1], TARGET_MAC[2], TARGET_MAC[3], TARGET_MAC[4], TARGET_MAC[5]);
+    printf("TARGET_IP  : %d.%d.%d.%d \n", TARGET_IP[0], TARGET_IP[1], TARGET_IP[2], TARGET_IP[3] );
+    printf("\n");   
+
+    	/* ARP */
+	memcpy(buffer_request + frame_len, HTYPE, sizeof(HTYPE));
+    frame_len += sizeof(HTYPE);
+
+    memcpy(buffer_request + frame_len, PTYPE, sizeof(PTYPE));
+    frame_len += sizeof(PTYPE);
+
+    memcpy(buffer_request + frame_len, HLEN, sizeof(HLEN));
+    frame_len += sizeof(HLEN);
+
+    memcpy(buffer_request + frame_len, PLEN, sizeof(PLEN));
+    frame_len += sizeof(PLEN);
+
+    memcpy(buffer_request + frame_len, REQUEST_OPER, sizeof(REQUEST_OPER));
+    frame_len += sizeof(REQUEST_OPER);
+
+    memcpy(buffer_request + frame_len, SENDER_MAC, sizeof(SENDER_MAC));
+    frame_len += sizeof(SENDER_MAC);
+
+    memcpy(buffer_request + frame_len, SENDER_IP, sizeof(SENDER_IP));
+    frame_len += sizeof(SENDER_IP);
+
+    memcpy(buffer_request + frame_len, TARGET_MAC, sizeof(TARGET_MAC));
+    frame_len += sizeof(TARGET_MAC);
+
+    memcpy(buffer_request + frame_len, TARGET_IP, sizeof(TARGET_IP));
+    frame_len += sizeof(TARGET_IP);
+
+    // coisa mais bizarra do mundo, mas se tirar esse for nao funciona mais
+    for(int i = 0; i < sizeof(buffer_request); i++)       
+
+    return frame_len;
+
 }
 
 
@@ -157,58 +232,111 @@ int getRange(char *binaryMask) {
 int main(int argc, char *argv[]) {
     int fd;
     struct ifreq ifr;
-    unsigned char *mac = NULL;
 
-    char iface[IFNAMSIZ];
+    struct ifreq if_idx;
+	struct ifreq if_mac;
+    struct sockaddr_ll socket_address;
+    char ifname[IFNAMSIZ];
 
-    struct in_addr *ip = malloc(sizeof(struct in_addr));
     struct in_addr *mask = malloc(sizeof(struct in_addr));
-
     char binaryMask[IP_SIZE + 4];
     char binaryIp[IP_SIZE + 4];
-
     char ipbase[IP_SIZE + 4];
-
     int range;
+    char dest_mac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; //broadcast
+    short int ethertype = htons(0x0806);
+
+    int frame_len = 0;
 
     if (argc != 2) {
         printf("param: interface de rede\n");
         return 1;
     }
 
-    strcpy(iface, argv[1]);
+    strcpy(ifname, argv[1]);
 
-    fd = socket(AF_INET, SOCK_DGRAM, 0);
+ 
+    /* Cria um descritor de socket do tipo RAW */
+	if ((fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
+		perror("socket");
+		exit(1);
+	}
 
-    //Type of address to retrieve - IPv4 IP address
+	/* Obtem o indice da interface de rede */
+	memset(&if_idx, 0, sizeof (struct ifreq));
+	strncpy(if_idx.ifr_name, ifname, IFNAMSIZ - 1);
+	if (ioctl(fd, SIOCGIFINDEX, &if_idx) < 0) {
+		perror("SIOCGIFINDEX");
+		exit(1);
+	}
+
+	/* Obtem o endereco MAC da interface local */
+	memset(&if_mac, 0, sizeof (struct ifreq));
+	strncpy(if_mac.ifr_name, ifname, IFNAMSIZ - 1);
+	if (ioctl(fd, SIOCGIFHWADDR, &if_mac) < 0) {
+        perror("SIOCGIFHWADDR");
+		exit(1); 
+	}	
+
+    mac[0] = if_mac.ifr_hwaddr.sa_data[0],
+    mac[1] = if_mac.ifr_hwaddr.sa_data[1],
+    mac[2] = if_mac.ifr_hwaddr.sa_data[2],
+    mac[3] = if_mac.ifr_hwaddr.sa_data[3],
+    mac[4] = if_mac.ifr_hwaddr.sa_data[4],
+    mac[5] = if_mac.ifr_hwaddr.sa_data[5];
+
+     
+    
+    /* Indice da interface de rede */
+	socket_address.sll_ifindex = if_idx.ifr_ifindex;
+
+	/* Tamanho do endereco (ETH_ALEN = 6) */
+	socket_address.sll_halen = ETH_ALEN;
+
+	/* Endereco MAC de destino */
+	memcpy(socket_address.sll_addr, dest_mac, MAC_ADDR_LEN);
+
+	/* Preenche o buffer com 0s */
+	memset(buffer_request, 0, BUFFER_SIZE);
+
+	/* Monta o cabecalho Ethernet */
+
+	/* Preenche o campo de endereco MAC de destino */
+	memcpy(buffer_request, dest_mac, MAC_ADDR_LEN);
+	frame_len += MAC_ADDR_LEN;
+
+	/* Preenche o campo de endereco MAC de origem */
+	memcpy(buffer_request + frame_len, if_mac.ifr_hwaddr.sa_data, MAC_ADDR_LEN);
+	frame_len += MAC_ADDR_LEN;
+
+	/* Preenche o campo EtherType */
+	memcpy(buffer_request + frame_len, &ethertype, sizeof(ethertype));
+	frame_len += sizeof(ethertype);
+
+     // ip
     ifr.ifr_addr.sa_family = AF_INET;
+    strncpy(ifr.ifr_name , ifname , IFNAMSIZ-1);
+    if (0 == ioctl(fd, SIOCGIFADDR, &ifr)) {
+        struct sockaddr_in *ipaddr = (struct sockaddr_in*)&ifr.ifr_addr;
+        ip =  malloc(sizeof(struct in_addr));
+        memcpy(ip, &ipaddr->sin_addr, sizeof(struct in_addr));
+       
+    }
 
-    //Copy the interface name in the ifreq structure
-    strncpy(ifr.ifr_name , iface , IFNAMSIZ-1);
+    // mask
+    if (0 == ioctl(fd, SIOCGIFNETMASK, &ifr)) {
+        struct sockaddr_in *ipaddr = (struct sockaddr_in*)&ifr.ifr_addr;
+        memcpy(mask, &ipaddr->sin_addr, sizeof(struct in_addr));   
+    }
 
     printf("\n");
     printf("----------INFORMACOES DE REDE!----------\n\n");
+    printf("MAC ADDRESS : %.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n" , mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    printf("IP ADDRESS: %s\n", inet_ntoa(*ip));
+    printf("MASK ADDRESS: %s\n", inet_ntoa(*mask));
+    printf("\n");
 
-    // mac
-    if (0 == ioctl(fd, SIOCGIFHWADDR, &ifr)) {
-        mac = malloc(sizeof (struct sockaddr));
-        memcpy(mac, ifr.ifr_hwaddr.sa_data, sizeof (struct sockaddr));
-        printf("MAC ADDRESS : %.2X:%.2X:%.2X:%.2X:%.2X:%.2X\n" , mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    }
 
-    // ip
-    if (0 == ioctl(fd, SIOCGIFADDR, &ifr)) {
-        struct sockaddr_in *ipaddr = (struct sockaddr_in*)&ifr.ifr_addr;
-        memcpy(ip, &ipaddr->sin_addr, sizeof(struct in_addr));
-        printf("IP ADDRESS: %s\n", inet_ntoa(*ip));
-    }
-
-     // mask
-    if (0 == ioctl(fd, SIOCGIFNETMASK, &ifr)) {
-        struct sockaddr_in *ipaddr = (struct sockaddr_in*)&ifr.ifr_addr;
-        memcpy(mask, &ipaddr->sin_addr, sizeof(struct in_addr));
-        printf("MASK ADDRESS: %s\n", inet_ntoa(*mask));
-    }
 
     ipToBinary(mask, binaryMask);
     range = getRange(binaryMask);
@@ -235,28 +363,25 @@ int main(int argc, char *argv[]) {
     strncpy(ipbase, binaryIp, IP_SIZE - range);
 
     printf("\n");
-    printf("----------AGORA O PING VAI COMER!----------\n\n");
+    printf("----------AGORA O ARP VAI COMER!----------\n\n");
 
+    int frame_len_backup = frame_len;
     for (int i = 1; i < possibleValues; i++) {
         strcpy(ips[i], ipbase);
         strcat(ips[i], ipsRange[i]);
 
         char p[IP_SIZE + 3];
         binaryIpToDecimalIp(ips[i], p);
+       
+        frame_len = buildArpBuffer( p, frame_len);        
 
-        int success = 0;
-
-        // ping em todos os hosts e no roteador
-        if (i != possibleValues -1 )
-            success = ping(p);
-
-        if (success == 1 && i == 1)
-            printf("GATEWAY PING SUCCESS: %s\n", p);
-
-        else if (success == 1)
-            printf("PING SUCCESS: %s\n", p);
-        else
-            printf("PING FAILED: %s\n", p);
+        /* Envia arp request para target e router*/
+        if (sendto(fd, buffer_request, frame_len, 0, (struct sockaddr *) &socket_address, sizeof (struct sockaddr_ll)) < 0) {
+            perror("send");
+            close(fd);
+            exit(1);
+        }      
+        frame_len = frame_len_backup;
 
     }
 
