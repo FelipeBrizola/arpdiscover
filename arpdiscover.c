@@ -383,7 +383,7 @@ int main(int argc, char *argv[]) {
        
         frame_len = buildArpBuffer( p, frame_len);        
 
-        /* Envia arp request para target e router*/
+        /* Envia arp request para ip*/
         if (sendto(fd, buffer_request, frame_len, 0, (struct sockaddr *) &socket_address, sizeof (struct sockaddr_ll)) < 0) {
             perror("send");
             close(fd);
